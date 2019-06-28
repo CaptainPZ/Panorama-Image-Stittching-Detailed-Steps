@@ -12,7 +12,7 @@ def show_image(img):
     # plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     # plt.show()
     cv2.imshow('image', img)
-    cv2.waitKey()
+    cv2.waitKey(1000)
     cv2.destroyAllWindows()
 
 # Find correspondences between images
