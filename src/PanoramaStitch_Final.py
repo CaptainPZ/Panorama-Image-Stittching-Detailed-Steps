@@ -5,21 +5,17 @@ from os import listdir
 from os.path import isfile, join
 import argparse
 import sys
+import matplotlib.pyplot as plt
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="cse 473/573 project 2.")
-    parser.add_argument(
-        "--img_path", type=str, default="",
-        help="path to the image used for stitching")
-    args = parser.parse_args()
-    return args
-
+# helper function, show images
 def show_image(img):
+    # plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    # plt.show()
     cv2.imshow('image', img)
-    cv2.waitKey(1000)
+    cv2.waitKey()
     cv2.destroyAllWindows()
 
-
+# Find correspondences between images
 def findMatchPair(dscrptor1, dscrptor2, kp1, kp2):
     result=list()
     superlist=list()
@@ -140,7 +136,6 @@ def findHMatrix(dMatchList, kp1, kp2):
 
 def mappedOrigin(img, homography):
     h,w,rgb = img.shape
-
     # calculate the converted corner coordinates
     corner_curr = np.array([[0, w, w, 0], [0, 0, h, h], [1, 1, 1, 1]])
     corner_transformed = np.dot(homography, corner_curr)
@@ -152,12 +147,10 @@ def mappedOrigin(img, homography):
     h_max = max(vertical_row)
     new_w = int(w_max-w_min)+1
     new_h = int(h_max-h_min)+1
-
     return w_min, h_min
 
 def mappedSize(img, homography):
     h,w,rgb = img.shape
-
     #calculate the converted corner coordinates
     corner_curr = np.array([[0, w, w, 0], [0, 0, h, h], [1, 1, 1, 1]])
     corner_transformed = np.dot(homography, corner_curr)
@@ -171,10 +164,7 @@ def mappedSize(img, homography):
     new_h = int(h_max-h_min)+1
     dim = (new_w, new_h)
     w_ratio, h_ratio = max(new_w, w)/min(new_w,w), max(new_h, h)/min(new_h,h)
-
     return w_ratio, h_ratio
-
-
 
 def sortImg(kps_descriptors, allImages):
     # Estabilish the order of the allImages
@@ -279,7 +269,6 @@ def sortImg(kps_descriptors, allImages):
 
 def warpImg(img, homography):
     h,w,rgb = img.shape
-
     #calculate the converted corner coordinates
     corner_curr = np.array([[0, w, 0, w],
                             [0, 0, h, h],
@@ -297,47 +286,50 @@ def warpImg(img, homography):
     orig_x = horizon_row[0]
     orig_y = vertical_row[0]
 
-    #compensate the offset
+    # Compensate the offset
     offsetComp = np.array([[1, 0, -1*w_min],
                            [0, 1, -1*h_min],
                            [0, 0, 1]])
     homography=np.dot(offsetComp,homography)
-
+    # Output the result
     warpedImg = cv2.warpPerspective(src=img, M=homography, dsize=dim)
-
     return warpedImg, (w_min, h_min)
 
 #%%
 def mosaicImg(img1, img2, featherBlending):
-    #img2 is dest, position unchanged
+    # Mosaicing images
+    # img2 is dest, position unchanged
     img1_grey = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     img2_grey = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
     # sift = cv2.xfeatures2d.SIFT_create(500)
-    sift = cv2.xfeatures2d.SIFT_create(edgeThreshold=10, sigma=1.5,  contrastThreshold=0.12)
+    # The following parameters are empirical
+    sift = cv2.xfeatures2d.SIFT_create(edgeThreshold=10, sigma=1.5, contrastThreshold=0.12)
     kp1, dscrptor1 = sift.detectAndCompute(img1_grey, None)
     kp2, dscrptor2 = sift.detectAndCompute(img2_grey, None)
     pairs, superlist, DmatchList1=findMatchPair(dscrptor1, dscrptor2, kp1, kp2)
     hMatrix = findHMatrix(DmatchList1, kp1,kp2)
 
+    # Drawing the matches
     imgXXX = cv2.drawMatches(img1, kp1, img2, kp2, DmatchList1, np.array([]))
     show_image(imgXXX)
 
+    # Warping images
     img1, original = warpImg(img1, hMatrix)
     w_min, h_min = original
-
     print("Aligned Move = ", round(w_min,2), " ,", round(h_min ,2))
-
     w_min, h_min = int(w_min), int(h_min)
     h1,w1,rgb1 = img1.shape
     h2,w2,rgb2 = img2.shape
-    #the combined pic size
+    # The combined pic size
     width = max(w1 + w_min, w2) - min(w_min, 0) #+ 1
     height = max(h1 + h_min, h2) - min(h_min, 0) #+ 1
     mosaic1 = np.zeros((height, width, 3), np.uint8)
     mosaic2 = np.zeros((height, width, 3), np.uint8)
 
+    # Template for final output
     mosaic = np.zeros((height, width, 3), np.uint8)
 
+    # Output the transformed coordinates data for check
     im1_org_H = max(0, h_min)
     im1_org_W = max(0, w_min)
     im2_org_H = max(0, -1*h_min)
@@ -355,23 +347,18 @@ def mosaicImg(img1, img2, featherBlending):
     print(im2_org_H,",", im2_org_H +  h2, ",", im2_org_W, ",", im2_org_W +  w2)
     print(img2.shape)
 
+    # if not feathering , just overlap the two pictures after warping
     if not featherBlending:
         mosaic[ im1_org_H : im1_org_H + h1  , im1_org_W : im1_org_W +  w1  , :] = img1
         mosaic[ im2_org_H : im2_org_H + h2  , im2_org_W : im2_org_W +  w2  , :] = img2
-
     else:
         mosaic1[ im1_org_H : im1_org_H + h1  , im1_org_W : im1_org_W +  w1  , :] = img1
         mosaic2[ im2_org_H : im2_org_H + h2  , im2_org_W : im2_org_W +  w2  , :] = img2
-
         #blending them together
-
         overlap_w = min(im2_org_W+w2, im1_org_W+w1) - max(im2_org_W, im1_org_W)
         overlap_H = min(im2_org_H+h2, im1_org_H+h1) - max(im2_org_H, im1_org_H)
-
         print("overlap width and height", overlap_w, ",",overlap_H )
-
-
-        overlapW = min(overlap_w, overlap_w) # use 10 pixel
+        overlapW = min(overlap_w, overlap_w) # use 25 pixel
         overlapH = min(overlap_H, overlap_H)
         zeros = np.array([0,0,0])
         startPixelW = max(im1_org_W, im2_org_W)
@@ -393,19 +380,15 @@ def mosaicImg(img1, img2, featherBlending):
                         if(h_min<0): weight = 1-weightFunction(row, startPixelH,overlapH)
                         if(h_min>0): weight = weightFunction(row, startPixelH,overlapH)
                     bendingCasePrint=False
-
                     weight = weight
-    #                print(weight)
                     mosaic[row, col, :] = (weight)*mosaic1[row, col, :] + (1-weight)*mosaic2[row, col, :]
-
-
-
-
     return mosaic
 
 #%%
 
 def weightFunction(currIndex, startPos, overLap):
+    # Feathering two images, each pixel value will come from the weighted sum
+    # of two input
     blendingWidth=min(overLap, 25)
     weight =0.0
     if currIndex < int(startPos + (overLap - blendingWidth )/2 ):
@@ -422,9 +405,8 @@ def weightFunction(currIndex, startPos, overLap):
 def mosaicAllImg(img_order, allImages, featherBlending):
     middleImgIndex = int((len(img_order))/2)
     print("middleImgIndex: ", middleImgIndex)
-#    middleImgIndex=1
 
-    # merge left or upper
+    # Merge left or upper
     counter=0
     i=1
     mosaic = allImages[img_order[0]]
@@ -436,15 +418,12 @@ def mosaicAllImg(img_order, allImages, featherBlending):
         mosaic = mosaicImg(mosaic, img2, featherBlending)
         counter+=1
         # cv2.imwrite(img_path + "panorama_"+ str(counter) +".jpg", mosaic)
-
         show_image(mosaic)
-
         i=i+1
     print("finished left")
-
     allImages[img_order[middleImgIndex]] = mosaic
 
-    #merge right or downl
+    # Merge right or downl
     j=len(img_order)-2
     mosaic = allImages[img_order[len(img_order)-1]]
     show_image(mosaic)
@@ -466,29 +445,24 @@ def mosaicAllImg(img_order, allImages, featherBlending):
 #=====================main================================================
 #=========================================================================
 
+# Switch of whether feather blending
+featherBlending=False # can be disabled for quicker stitching
 
-# args = parse_args()
-# img_path = "./Compressed/data(3)/test2/"
-#img_path=args.img_path
-
+# Find all image files in the directory
 if len(sys.argv) >=2 :
     img_path ="../" + sys.argv[1] + "/"
 else:
     img_path = "../data/"
-featherBlending=True # can be disabled for quicker stitching
-
 onlyfiles = [f for f in listdir(img_path) if isfile(join(img_path, f))]
 allImages=[]
-
 if len(onlyfiles)==0: print("No files in folder!");   exit()
-
 for filename in onlyfiles:
+    if filename=="panorama.jpg": continue
     allImages.append(cv2.imread(img_path + filename, 1))
     print(filename)
-
 #%%
-# check if duplicate exist
 
+# check if duplicate files exist
 for i in range(len(allImages)-1):
     img_i = allImages[i]
     j=i+1
@@ -505,9 +479,9 @@ allImages_grey=[]
 for img in allImages:
     allImages_grey.append(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
 
-# capture SIFT feature
+# Retrieve SIFT feature
 # sift = cv2.xfeatures2d.SIFT_create(500)
-sift = cv2.xfeatures2d.SIFT_create(edgeThreshold=10, sigma=1.5,  contrastThreshold=0.12)
+sift = cv2.xfeatures2d.SIFT_create(edgeThreshold=10, sigma=1.5,contrastThreshold=0.12)
 kps_descriptors=[]
 for i,grey_img in enumerate(allImages_grey):
     kp, descriptor = sift.detectAndCompute(grey_img, None)
@@ -517,7 +491,6 @@ for i,grey_img in enumerate(allImages_grey):
     print("Image ", i, " found keypoints: ", len(kp))
     show_image(img_desp)
 
-
 #sort the images in the right order
 img_order = sortImg(kps_descriptors, allImages)
 for imgId in img_order:
@@ -526,5 +499,4 @@ for imgId in img_order:
 #combined the sorted pic
 finalImg = mosaicAllImg(img_order, allImages, featherBlending)
 show_image(finalImg)
-
 cv2.imwrite(img_path + "panorama.jpg", finalImg)
