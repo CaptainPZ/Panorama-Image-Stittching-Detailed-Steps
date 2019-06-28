@@ -141,7 +141,7 @@ def findHMatrix(dMatchList, kp1, kp2):
 def mappedOrigin(img, homography):
     h,w,rgb = img.shape
 
-    #calculate the converted corner coordinates
+    # calculate the converted corner coordinates
     corner_curr = np.array([[0, w, w, 0], [0, 0, h, h], [1, 1, 1, 1]])
     corner_transformed = np.dot(homography, corner_curr)
     horizon_row = corner_transformed[0]/corner_transformed[2]
@@ -177,19 +177,19 @@ def mappedSize(img, homography):
 
 
 def sortImg(kps_descriptors, allImages):
+    # Estabilish the order of the allImages
     img_order=[]
     leftOrUpMember=[]
     leftOrUpMemberMatchPairs=[]
     rightOrDownMember=[]
     rightOrDownMemberMatchPairs=[]
 
+    # For each image, record all possible neighbors at two sides
     for elm in allImages:
         leftOrUpMember.append(list())
         leftOrUpMemberMatchPairs.append(list())
         rightOrDownMember.append(list())
         rightOrDownMemberMatchPairs.append(list())
-
-
     for i in range(len(kps_descriptors)-1):
         kp1,dscrptor1 = kps_descriptors[i]
         for j in range(i+1, len(kps_descriptors)):
@@ -199,29 +199,34 @@ def sortImg(kps_descriptors, allImages):
             #check if match exist
             if(DmatchList1 != None):
                 hMatrix = findHMatrix(DmatchList1, kp1,kp2)
-                img_match = cv2.drawMatches(allImages[i], kp1, allImages[j], kp2, DmatchList1, np.array([]))
-
+                img_match = cv2.drawMatches(allImages[i], kp1, allImages[j],
+                kp2, DmatchList1, np.array([]))
+                # A qucik check to see the matching
                 show_image(img_match)
                 new_w, new_h = mappedOrigin(allImages[i], hMatrix)
-
-                print("Aligned origin = ", new_w, " , ", new_h, " im1_size:" , allImages[i].shape[1],",",allImages[i].shape[0],
-                                            " im2_size: " , allImages[j].shape[1],",",allImages[j].shape[0])
-                if( ( ( new_w>0 and abs(new_w) >= 1.2*allImages[j].shape[1]) or ( new_w<0 and abs(new_w) >= 1.2*allImages[i].shape[1] )  ) or
-                  ( ( new_h>0 and abs(new_h) >= 1.2*allImages[j].shape[0]) or ( new_h<0 and abs(new_h) >= 1.2*allImages[i].shape[0] )  ) ): print("distance not valid"); continue
-
+                print("Aligned origin = ", new_w, " , ", new_h, " im1_size:" ,
+                                allImages[i].shape[1],",",allImages[i].shape[0],
+                                " im2_size: " , allImages[j].shape[1], ",",allImages[j].shape[0])
+                # Discard the match if the matching distance is out of bound
+                if( ( ( new_w>0 and abs(new_w) >= 1.2*allImages[j].shape[1]) or
+                    ( new_w<0 and abs(new_w) >= 1.2*allImages[i].shape[1] )  ) or
+                    ( ( new_h>0 and abs(new_h) >= 1.2*allImages[j].shape[0]) or
+                    ( new_h<0 and abs(new_h) >= 1.2*allImages[i].shape[0] )  ) ):
+                    print("distance not valid"); continue
+                # Calculate the image size which to be transformed
                 new_w_r, new_h_r = mappedSize(allImages[i], hMatrix)
                 print("Aligned scale = ", new_w_r, " , ", new_h_r)
-
+                # Discard the match if the transformed size is way off comparing to original one
                 if(max(new_w_r,new_h_r) >2): print("max scale change reached, H invalid"); continue
-
                 show_image(img_match)
+
+                # Add the found neighbors to the corresponding list
                 if ( ((abs(new_w) > abs(new_h)) and (new_w<0)) or
                     ((abs(new_w) < abs(new_h)) and (new_h<0)) ):
                     rightOrDownMember[i].append(j)
                     rightOrDownMemberMatchPairs[i].append(len(DmatchList1))
                     leftOrUpMember[j].append(i)
                     leftOrUpMemberMatchPairs[j].append(len(DmatchList1))
-
                 elif ( ((abs(new_w) > abs(new_h)) and (new_w>0)) or
                     ((abs(new_w) < abs(new_h)) and (new_h>0)) ):
                     leftOrUpMember[i].append(j)
@@ -232,12 +237,13 @@ def sortImg(kps_descriptors, allImages):
                 print("No relation Found.")
 
 
-    #analysis order
+    # Analysis image order
+    # For images with multiple neighbors, find the closest one as its adjacent image
     orderDict=dict()
     print("analysis pics order:")
     for i, elm in enumerate(allImages):
+        # Analysis the neighbor on right or down side
         print("now analysis pic:  ", i)
-
         print("right adjacent is: ")
         print(rightOrDownMember[i])
         print(rightOrDownMemberMatchPairs[i])
@@ -245,10 +251,7 @@ def sortImg(kps_descriptors, allImages):
             j=rightOrDownMember[i][np.argmax(rightOrDownMemberMatchPairs[i])]
             orderDict.update({i:j})
             print("estabilished ", i, " << ", j)
-            # if( (not i in img_order) and (j in img_order)): img_order.insert(img_order.index(j),i)
-            # if( (i in img_order) and (not j in img_order)): img_order.insert(img_order.index(i)+1,j)
-            # if( (not i in img_order) and (not j in img_order)): img_order.append(i);img_order.append(j)
-
+        # Analysis the neighbor on left or upper side
         print("left adjacent is: ")
         print(leftOrUpMember[i])
         print(leftOrUpMemberMatchPairs[i])
@@ -256,10 +259,8 @@ def sortImg(kps_descriptors, allImages):
             j=leftOrUpMember[i][np.argmax(leftOrUpMemberMatchPairs[i])]
             orderDict.update({j:i})
             print("estabilished ", j, " << ", i)
-            # if( (not i in img_order) and (j in img_order)): img_order.insert(img_order.index(j)+1,i)
-            # if( (i in img_order) and (not j in img_order)): img_order.insert(img_order.index(i),j)
-            # if( (not i in img_order) and (not j in img_order)): img_order.append(j);img_order.append(i)
-    # organize the tuple order data
+
+    # Organize the tuple order data
     sortCounterL=[0 for i in range(len(allImages))]
     sortCounterR=[0 for i in range(len(allImages))]
     for i, j in orderDict.items():
@@ -272,7 +273,6 @@ def sortImg(kps_descriptors, allImages):
     while( i in orderDict):
         i = orderDict.get(i)
         img_order.append(i)
-
 
     print(img_order)
     return img_order
