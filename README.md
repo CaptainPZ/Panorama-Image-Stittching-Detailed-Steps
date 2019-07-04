@@ -20,7 +20,7 @@
 
 ### Fitting the homograph
 
- 		a. Find the best homograph mapping
+​		a. Find the best homograph mapping
 
 ​		b. Recommend to refer to cv2.findhomegraphy (least square best fit)  
 
