@@ -19,7 +19,8 @@ The script can be run in following commands.
 
 ​   d. (Recommend to use descriptors matchers from openCV
 
-
+<img src="img_01.png" align="center">  
+<p align="center">  </p>
 
 ### Step 2 Fitting the homograph
 
