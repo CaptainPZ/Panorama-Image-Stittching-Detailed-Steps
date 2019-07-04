@@ -44,12 +44,15 @@ The script can be run in following commands.
 
 ### Step 4 Image mosaicing
 
-​        a. Blend
-
-​        b. Alpha blending?
-
 ​				i. feathering
 
 ​            	ii. Pyramid blending
 
 ​            	iii. Multi-band blending# Panorama-Image-Stittching-Detailed-Steps
+
+
+### Stitching results
+<img src="img_02.jpg" align="center">  
+<p align="center">  </p>
+<img src="data2/panorama.jpg" align="center">  
+<p align="center">  </p>
