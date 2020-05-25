@@ -1,0 +1,1 @@
+The script has been tested to work well in either horizontal or vertical order. The order of image can be automatically determined from script.
